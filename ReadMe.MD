@@ -6,7 +6,7 @@
 
 This application uses a custom API for the CRM App. 
 Get the API form https://github.com/fubsi/mobsys-backend-api and follow the instructions provided there.
-This API is a Hard requirement the application work without it.
+This API is a Hard requirement, the application work without it.
 
 ### Firebase Configuration
 
