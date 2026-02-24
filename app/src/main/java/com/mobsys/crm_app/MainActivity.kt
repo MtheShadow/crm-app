@@ -1,7 +1,10 @@
 package com.mobsys.crm_app
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import android.view.MenuItem
@@ -9,8 +12,10 @@ import android.view.View
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.appcompat.widget.Toolbar
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -47,6 +52,11 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     ) { res ->
         this.onSignInResult(res)
     }
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* result ignored – notification will appear on next load if granted */ }
+
     private lateinit var auth : FirebaseAuth
 
     // Drawer-related
@@ -73,6 +83,14 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
         FirebaseApp.initializeApp(this)
+
+        // Request notification permission on Android 13+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
 
         // Initialize offline cache
         appointmentCache = AppointmentCache(AppDatabase.getInstance(this))
@@ -295,6 +313,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     // Setup RecyclerView with filtered appointments
                     recyclerView.layoutManager = LinearLayoutManager(this@MainActivity)
                     recyclerView.adapter = AppointmentAdapter(filteredAppointments)
+
+                    // Notify about today's appointments
+                    AppointmentNotificationHelper.showTodayNotification(this@MainActivity, filteredAppointments)
                 }
             } catch (e: Exception) {
                 Log.e("HTTP Client", "Error performing network request — trying offline cache", e)
@@ -309,6 +330,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     recyclerView.visibility = View.VISIBLE
                     recyclerView.layoutManager = LinearLayoutManager(this@MainActivity)
                     recyclerView.adapter = AppointmentAdapter(cachedAppointments)
+
+                    // Notify about today's appointments (from cache)
+                    AppointmentNotificationHelper.showTodayNotification(this@MainActivity, cachedAppointments)
                 }
             }
         }
